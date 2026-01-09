@@ -21,19 +21,25 @@ jobs:
 
       - name: Setup ZSign
         run: |
+          # لێرەدا بە وردی دەچینە ناو فۆڵدەرەکە بۆ ئەوەی هەڵە نەکات
           git clone https://github.com/zhlynn/zsign.git
           cd zsign
           g++ *.cpp -lcrypto -O3 -o zsign
           sudo cp zsign /usr/local/bin/
+          cd ..
 
-      - name: Process Signing
+      - name: Sign IPA Files
         run: |
           mkdir -p signed_output
           IFS=',' read -ra LINKS <<< "${{ github.event.inputs.ipa_links }}"
           for link in "${LINKS[@]}"; do
             clean_link=$(echo $link | xargs)
             filename=$(basename "$clean_link")
+            echo "Downloading: $filename"
             curl -L "$clean_link" -o "$filename"
+            
+            echo "Signing: $filename"
+            # دڵنیابە cert.p12 و dev.mobileprovision لە ڕێپۆزیتۆرییەکەدا هەن
             zsign -k cert.p12 -p "1" -m dev.mobileprovision -o "signed_output/s_$filename" "$filename"
             rm "$filename"
           done
