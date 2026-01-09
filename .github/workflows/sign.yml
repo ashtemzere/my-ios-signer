@@ -1,12 +1,12 @@
-name: Ashte Mobile Signer
+name: Ashte Mobile Auto Signer
 on:
   workflow_dispatch:
     inputs:
       ipa_links:
-        description: 'IPA Links (separate by comma)'
+        description: 'لینکەکان لێرە دابنێ (بۆ نموونە لینکی PicsArt)'
         required: true
       p12_password:
-        description: 'Certificate Password'
+        description: 'Password'
         required: true
         default: '1'
 
@@ -19,27 +19,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup ZSign
+      - name: Setup ZSign Tool
         run: |
-          # لێرەدا بە وردی دەچینە ناو فۆڵدەرەکە بۆ ئەوەی هەڵە نەکات
+          # چارەسەری کۆتایی بۆ کێشەی No such file
           git clone https://github.com/zhlynn/zsign.git
           cd zsign
-          g++ *.cpp -lcrypto -O3 -o zsign
+          g++ *.cpp common/*.cpp crypto/*.cpp -lcrypto -O3 -o zsign
           sudo cp zsign /usr/local/bin/
           cd ..
 
-      - name: Sign IPA Files
+      - name: Process App Signing
         run: |
           mkdir -p signed_output
           IFS=',' read -ra LINKS <<< "${{ github.event.inputs.ipa_links }}"
           for link in "${LINKS[@]}"; do
             clean_link=$(echo $link | xargs)
             filename=$(basename "$clean_link")
-            echo "Downloading: $filename"
+            echo "داگرتنی فایل: $filename"
             curl -L "$clean_link" -o "$filename"
             
-            echo "Signing: $filename"
-            # دڵنیابە cert.p12 و dev.mobileprovision لە ڕێپۆزیتۆرییەکەدا هەن
+            echo "واژۆکردنی فایل: $filename"
+            # بەکارهێنانی فایلەکانت cert.p12 و dev.mobileprovision
             zsign -k cert.p12 -p "1" -m dev.mobileprovision -o "signed_output/s_$filename" "$filename"
             rm "$filename"
           done
@@ -48,7 +48,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
-          name: "Ashte-Signed-${{ github.run_number }}"
+          name: "Ashte Signed - Build ${{ github.run_number }}"
           files: signed_output/*.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
