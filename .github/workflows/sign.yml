@@ -1,9 +1,9 @@
-name: Ashte Final Powerful Signer
+name: Ashte Final Fix No Error
 on:
   workflow_dispatch:
     inputs:
       ipa_links:
-        description: 'لینکی ئەپەکە لێرە دابنێ'
+        description: 'Direct IPA Link'
         required: true
 
 jobs:
@@ -17,32 +17,34 @@ jobs:
 
       - name: Install ZSign
         run: |
+          # داگرتنی بەرنامەکە بە ئامادەکراوی بۆ ئەوەی چیتر هەڵەی cpp نەبینین
           wget https://github.com/zhlynn/zsign/releases/download/v1.1.2/zsign-linux-x86_64.tar.gz
           tar -xvf zsign-linux-x86_64.tar.gz
           sudo mv zsign /usr/local/bin/
-          chmod +x /usr/local/bin/zsign
 
-      - name: Find and Sign
+      - name: Sign App
         run: |
           mkdir -p signed_output
-          # داگرتنی ئەپەکە
-          curl -L "${{ github.event.inputs.ipa_links }}" -o my_app.ipa
+          curl -L "${{ github.event.inputs.ipa_links }}" -o app.ipa
           
-          # دۆزینەوەی ئۆتۆماتیکی فایلەکان (تەنانەت ئەگەر ناویان کەمێک جیاواز بێت)
-          CERT_FILE=$(ls *.p12 | head -n 1)
-          PROV_FILE=$(ls *.mobileprovision | head -n 1)
+          # دۆزینەوەی فایلەکان لە هەر شوێنێک بن (تەنانەت ناو فۆڵدەریش)
+          P12=$(find . -name "*.p12" | head -n 1)
+          PROV=$(find . -name "*.mobileprovision" | head -n 1)
           
-          echo "Using Certificate: $CERT_FILE"
-          echo "Using Provision: $PROV_FILE"
+          if [ -z "$P12" ]; then echo "Error: P12 file not found!"; exit 1; fi
+          if [ -z "$PROV" ]; then echo "Error: Provision file not found!"; exit 1; fi
           
-          # واژۆکردن
-          zsign -k "$CERT_FILE" -p "1" -m "$PROV_FILE" -o "signed_output/Signed_By_Ashte.ipa" my_app.ipa
+          echo "Found Certificate: $P12"
+          echo "Found Provision: $PROV"
+          
+          # واژۆکردن بە پاسۆردی 1
+          zsign -k "$P12" -p "1" -m "$PROV" -o "signed_output/Ashte_Signed.ipa" app.ipa
 
-      - name: Upload to Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
-          name: "Ashte-Build-${{ github.run_number }}"
+          name: "Ashte-App-${{ github.run_number }}"
           files: signed_output/*.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
