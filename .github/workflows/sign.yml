@@ -8,7 +8,7 @@ on:
       p12_password:
         description: 'پاسۆردی بڕوانامە'
         required: true
-        default: '@ashtemobile'
+        default: '1'
 
 jobs:
   sign:
