@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       ipa_links:
-        description: 'لێرە یەک لینک یان چەند لینک دابنێ (بە فاریزە "," جیایان بکەرەوە)'
+        description: 'لینکەکان لێرە دابنێ (بە فاریزە "," جیایان بکەرەوە)'
         required: true
       p12_password:
         description: 'پاسۆردی بڕوانامە'
@@ -19,18 +19,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install ZSign
+      - name: Build ZSign Correctly
         run: |
-          # داگرتنی وەشانی ئامادەکراو بۆ ئەوەی تووشی هەڵەی *.cpp نەبیت
-          wget https://github.com/zhlynn/zsign/releases/download/v0.1/zsign_linux_x86_64.tar.gz
-          tar -xzf zsign_linux_x86_64.tar.gz
-          chmod +x zsign
-          sudo mv zsign /usr/local/bin/
+          # لێرەدا کێشەی وێنەکانت چارەسەر دەکەین
+          git clone https://github.com/zhlynn/zsign.git
+          cd zsign
+          g++ *.cpp -lcrypto -O3 -o zsign
+          sudo cp zsign /usr/local/bin/
+          cd .. # گەڕانەوە بۆ فۆڵدەری سەرەکی پڕۆژەکە
 
-      - name: Process Signing
+      - name: Sign IPA Files
         run: |
           mkdir -p signed_output
-          # کۆدەکە یەک لینک یان چەند لینک بێت جیاکاری دەکات
           IFS=',' read -ra LINKS <<< "${{ github.event.inputs.ipa_links }}"
           for link in "${LINKS[@]}"; do
             clean_link=$(echo $link | xargs)
@@ -39,12 +39,12 @@ jobs:
             curl -L "$clean_link" -o "$filename"
             
             echo "خەریکی واژۆکردنی: $filename"
-            # بەکارهێنانی فایلەکانی cert.p12 و dev.mobileprovision لە ڕێپۆزیتۆرییەکەدا
+            # دڵنیابە cert.p12 و dev.mobileprovision لێرە هەن
             zsign -k cert.p12 -p "${{ github.event.inputs.p12_password }}" -m dev.mobileprovision -o "signed_output/s_$filename" "$filename"
             rm "$filename"
           done
 
-      - name: Create Release
+      - name: Upload to Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
