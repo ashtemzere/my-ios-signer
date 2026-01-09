@@ -1,4 +1,4 @@
-name: Ashte Mobile Fix Final
+name: Ashte Final Powerful Signer
 on:
   workflow_dispatch:
     inputs:
@@ -15,28 +15,34 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install ZSign Tool
+      - name: Install ZSign
         run: |
-          # لە جیاتی ئەوەی دروستی بکەین، دانەیەکی ئامادەکراو دادەگرین
           wget https://github.com/zhlynn/zsign/releases/download/v1.1.2/zsign-linux-x86_64.tar.gz
           tar -xvf zsign-linux-x86_64.tar.gz
           sudo mv zsign /usr/local/bin/
           chmod +x /usr/local/bin/zsign
 
-      - name: Sign App
+      - name: Find and Sign
         run: |
           mkdir -p signed_output
           # داگرتنی ئەپەکە
           curl -L "${{ github.event.inputs.ipa_links }}" -o my_app.ipa
           
-          # واژۆکردن بە پاسۆردی 1 و ئەو فایلانەی لە پڕۆژەکەتدا هەن
-          zsign -k cert.p12 -p "1" -m dev.mobileprovision -o "signed_output/Ashte_Signed.ipa" my_app.ipa
+          # دۆزینەوەی ئۆتۆماتیکی فایلەکان (تەنانەت ئەگەر ناویان کەمێک جیاواز بێت)
+          CERT_FILE=$(ls *.p12 | head -n 1)
+          PROV_FILE=$(ls *.mobileprovision | head -n 1)
+          
+          echo "Using Certificate: $CERT_FILE"
+          echo "Using Provision: $PROV_FILE"
+          
+          # واژۆکردن
+          zsign -k "$CERT_FILE" -p "1" -m "$PROV_FILE" -o "signed_output/Signed_By_Ashte.ipa" my_app.ipa
 
-      - name: Create Release
+      - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
-          name: "Ashte-App-${{ github.run_number }}"
+          name: "Ashte-Build-${{ github.run_number }}"
           files: signed_output/*.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
