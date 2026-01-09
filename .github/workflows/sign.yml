@@ -1,13 +1,14 @@
-name: Final Fixed Signer
+name: Universal iOS Signer
 on:
   workflow_dispatch:
     inputs:
       ipa_links:
-        description: 'لینکەکان (بە فاریزە "," جیایان بکەوە)'
+        description: 'لێرە یەک لینک یان چەند لینک دابنێ (بە فاریزە "," جیایان بکەرەوە)'
         required: true
       p12_password:
         description: 'پاسۆردی بڕوانامە'
         required: true
+        default: '@ashtemobile'
 
 jobs:
   sign:
@@ -20,22 +21,27 @@ jobs:
 
       - name: Install ZSign
         run: |
-          # داگرتنی فایلی ئامادەکراو بۆ ئەوەی تووشی هەڵەی *.cpp نەبیت
+          # داگرتنی وەشانی ئامادەکراو بۆ ئەوەی تووشی هەڵەی *.cpp نەبیت
           wget https://github.com/zhlynn/zsign/releases/download/v0.1/zsign_linux_x86_64.tar.gz
           tar -xzf zsign_linux_x86_64.tar.gz
           chmod +x zsign
           sudo mv zsign /usr/local/bin/
 
-      - name: Sign Apps
+      - name: Process Signing
         run: |
           mkdir -p signed_output
+          # کۆدەکە یەک لینک یان چەند لینک بێت جیاکاری دەکات
           IFS=',' read -ra LINKS <<< "${{ github.event.inputs.ipa_links }}"
           for link in "${LINKS[@]}"; do
             clean_link=$(echo $link | xargs)
             filename=$(basename "$clean_link")
+            echo "خەریکی داگرتنی: $filename"
             curl -L "$clean_link" -o "$filename"
-            # واژۆکردن بەو فایلانەی کە لودت کردوون بۆ ناو گیتھاب
+            
+            echo "خەریکی واژۆکردنی: $filename"
+            # بەکارهێنانی فایلەکانی cert.p12 و dev.mobileprovision لە ڕێپۆزیتۆرییەکەدا
             zsign -k cert.p12 -p "${{ github.event.inputs.p12_password }}" -m dev.mobileprovision -o "signed_output/s_$filename" "$filename"
+            rm "$filename"
           done
 
       - name: Create Release
