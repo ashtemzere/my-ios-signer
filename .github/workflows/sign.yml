@@ -1,0 +1,46 @@
+name: My Private iOS Signer
+on:
+  workflow_dispatch:
+    inputs:
+      ipa_links:
+        description: 'لینکەکان لێرە دابنێ (بە فاریزە "," جیایان بکەرەوە)'
+        required: true
+      p12_password:
+        description: 'پاسۆردی بڕوانامە'
+        required: true
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup ZSign
+        run: |
+          git clone https://github.com/zhlynn/zsign.git
+          cd zsign && g++ *.cpp -lcrypto -O3 -o zsign
+          sudo cp zsign /usr/local/bin/
+
+      - name: Process Apps
+        run: |
+          mkdir -p signed_output
+          IFS=',' read -ra LINKS <<< "${{ github.event.inputs.ipa_links }}"
+          for link in "${LINKS[@]}"; do
+            clean_link=$(echo $link | xargs)
+            filename=$(basename "$clean_link")
+            curl -L "$clean_link" -o "$filename"
+            zsign -k cert.p12 -p "${{ github.event.inputs.p12_password }}" -m dev.mobileprovision -o "signed_output/s_$filename" "$filename"
+            rm "$filename"
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: "Signed Apps - Build ${{ github.run_number }}"
+          files: signed_output/*.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
