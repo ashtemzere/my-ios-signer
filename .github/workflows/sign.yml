@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       ipa_links:
-        description: 'لینکەکان لێرە دابنێ (بە فاریزە "," جیایان بکەرەوە)'
+        description: 'لیستی لینکەکان (بە فاریزە "," لێکیان جیا بکەرەوە)'
         required: true
       p12_password:
         description: 'پاسۆردی بڕوانامە'
@@ -24,8 +24,9 @@ jobs:
           cd zsign
           g++ *.cpp -lcrypto -O3 -o zsign
           sudo cp zsign /usr/local/bin/
+          cd ..
 
-      - name: Process Apps
+      - name: Download and Sign Apps
         run: |
           mkdir -p signed_output
           IFS=',' read -ra LINKS <<< "${{ github.event.inputs.ipa_links }}"
@@ -34,7 +35,9 @@ jobs:
             filename=$(basename "$clean_link")
             echo "خەریکی داگرتنی: $filename"
             curl -L "$clean_link" -o "$filename"
+            
             echo "خەریکی واژۆکردنی: $filename"
+            # دڵنیابە فایلەکانی cert.p12 و dev.mobileprovision لە ڕێپۆزیتۆرییەکەدا هەن
             zsign -k cert.p12 -p "${{ github.event.inputs.p12_password }}" -m dev.mobileprovision -o "signed_output/s_$filename" "$filename"
             rm "$filename"
           done
