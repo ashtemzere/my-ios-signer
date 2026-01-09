@@ -1,42 +1,48 @@
-name: Public iOS Signer Tool
+name: Final Fixed Signer
 on:
   workflow_dispatch:
     inputs:
-      ipa_url:
-        description: 'رابط ملف الـ IPA (Direct Link)'
-        required: true
-      p12_base64:
-        description: 'كود الـ P12 (Base64)'
+      ipa_links:
+        description: 'لینکەکان (بە فاریزە "," جیایان بکەوە)'
         required: true
       p12_password:
-        description: 'كلمة سر الشهادة'
-        required: true
-      provision_base64:
-        description: 'كود الـ Provisioning (Base64)'
+        description: 'پاسۆردی بڕوانامە'
         required: true
 
 jobs:
   sign:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Setup ZSign
-        run: |
-          git clone https://github.com/zhlynn/zsign.git
-          cd zsign && g++ *.cpp -lcrypto -O3 -o zsign
-          sudo cp zsign /usr/local/bin/
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Prepare Files
+      - name: Install ZSign
         run: |
-          curl -L "${{ github.event.inputs.ipa_url }}" -o app.ipa
-          echo "${{ github.event.inputs.p12_base64 }}" | base64 -d > cert.p12
-          echo "${{ github.event.inputs.provision_base64 }}" | base64 -d > dev.mobileprovision
+          # داگرتنی فایلی ئامادەکراو بۆ ئەوەی تووشی هەڵەی *.cpp نەبیت
+          wget https://github.com/zhlynn/zsign/releases/download/v0.1/zsign_linux_x86_64.tar.gz
+          tar -xzf zsign_linux_x86_64.tar.gz
+          chmod +x zsign
+          sudo mv zsign /usr/local/bin/
 
-      - name: Sign IPA
+      - name: Sign Apps
         run: |
-          zsign -k cert.p12 -p ${{ github.event.inputs.p12_password }} -m dev.mobileprovision -o signed_app.ipa app.ipa
+          mkdir -p signed_output
+          IFS=',' read -ra LINKS <<< "${{ github.event.inputs.ipa_links }}"
+          for link in "${LINKS[@]}"; do
+            clean_link=$(echo $link | xargs)
+            filename=$(basename "$clean_link")
+            curl -L "$clean_link" -o "$filename"
+            # واژۆکردن بەو فایلانەی کە لودت کردوون بۆ ناو گیتھاب
+            zsign -k cert.p12 -p "${{ github.event.inputs.p12_password }}" -m dev.mobileprovision -o "signed_output/s_$filename" "$filename"
+          done
 
-      - name: Upload Result
-        uses: actions/upload-artifact@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: Signed-By-Public-Tool
-          path: signed_app.ipa
+          tag_name: v${{ github.run_number }}
+          name: "Signed Apps - Build ${{ github.run_number }}"
+          files: signed_output/*.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
