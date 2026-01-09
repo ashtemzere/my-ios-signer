@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       ipa_links:
-        description: 'لیستی لینکەکان (بە فاریزە "," لێکیان جیا بکەرەوە)'
+        description: 'لینکەکان لێرە دابنێ (بە فاریزە "," جیایان بکەرەوە)'
         required: true
       p12_password:
         description: 'پاسۆردی بڕوانامە'
@@ -18,13 +18,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup ZSign
+      - name: Install ZSign (Direct Binary)
         run: |
-          git clone https://github.com/zhlynn/zsign.git
-          cd zsign
-          g++ *.cpp -lcrypto -O3 -o zsign
+          # داگرتنی وەشانی ئامادەکراو بۆ ئەوەی تووشی هەڵەی Compile نەبیت
+          wget https://github.com/zhlynn/zsign/releases/download/v0.1/zsign_linux_x86_64.tar.gz
+          tar -xvf zsign_linux_x86_64.tar.gz
+          chmod +x zsign
           sudo cp zsign /usr/local/bin/
-          cd ..
 
       - name: Download and Sign Apps
         run: |
