@@ -1,4 +1,4 @@
-name: Universal iOS Signer
+name: Ashte Mobile Signer
 on:
   workflow_dispatch:
     inputs:
@@ -21,30 +21,26 @@ jobs:
 
       - name: Build ZSign Correctly
         run: |
-          # لێرەدا کێشەی وێنەکانت چارەسەر دەکەین
           git clone https://github.com/zhlynn/zsign.git
           cd zsign
           g++ *.cpp -lcrypto -O3 -o zsign
           sudo cp zsign /usr/local/bin/
-          cd .. # گەڕانەوە بۆ فۆڵدەری سەرەکی پڕۆژەکە
+          cd ..
 
-      - name: Sign IPA Files
+      - name: Process Signing
         run: |
           mkdir -p signed_output
           IFS=',' read -ra LINKS <<< "${{ github.event.inputs.ipa_links }}"
           for link in "${LINKS[@]}"; do
             clean_link=$(echo $link | xargs)
             filename=$(basename "$clean_link")
-            echo "خەریکی داگرتنی: $filename"
             curl -L "$clean_link" -o "$filename"
-            
-            echo "خەریکی واژۆکردنی: $filename"
-            # دڵنیابە cert.p12 و dev.mobileprovision لێرە هەن
+            # واژۆکردن بەو فایلانەی کە لە ناو پڕۆژەکەتدا هەن
             zsign -k cert.p12 -p "${{ github.event.inputs.p12_password }}" -m dev.mobileprovision -o "signed_output/s_$filename" "$filename"
             rm "$filename"
           done
 
-      - name: Upload to Releases
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
