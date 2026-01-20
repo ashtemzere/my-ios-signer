@@ -1,0 +1,56 @@
+name: Auto Sign IPA
+on:
+  workflow_dispatch:  # دەتوانی خۆت دەستپێش بکەیت
+  push:
+    paths:
+      - 'uploads/*.ipa'
+      - 'uploads/*.p12'
+      - 'uploads/*.mobileprovision'
+
+jobs:
+  sign-ipa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git make g++ libzip-dev openssl
+          
+      - name: Clone and build ZSign
+        run: |
+          git clone https://github.com/zhlynn/zsign.git
+          cd zsign
+          make
+          
+      - name: Find and sign IPA files
+        run: |
+          cd ${{ github.workspace }}
+          
+          # گەڕان بۆ فایلەکان
+          IPA_FILE=$(find uploads -name "*.ipa" | head -1)
+          P12_FILE=$(find uploads -name "*.p12" | head -1)
+          PROVISION_FILE=$(find uploads -name "*.mobileprovision" | head -1)
+          PASSWORD=$(cat config.json | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
+          
+          if [ -f "$IPA_FILE" ] && [ -f "$P12_FILE" ] && [ -f "$PROVISION_FILE" ]; then
+            echo "📦 وێنەگیری IPA..."
+            ./zsign/zsign -k "$P12_FILE" -p "$PASSWORD" -m "$PROVISION_FILE" -o "signed.ipa" "$IPA_FILE"
+            echo "✅ وێنەگیری تەواو بوو!"
+          else
+            echo "❌ فایلەکان نەدۆزرایەوە"
+            exit 1
+          fi
+          
+      - name: Upload signed IPA
+        uses: actions/upload-artifact@v3
+        with:
+          name: signed-ipa
+          path: signed.ipa
+          
+      - name: Create download link
+        run: |
+          echo "📎 لینکی داگرتن:" >> $GITHUB_STEP_SUMMARY
+          echo "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
